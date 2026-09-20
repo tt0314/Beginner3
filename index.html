@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>ToDoアプリ</title>
+<style>
+  :root {
+    --bg: #f4f6f8;
+    --card: #ffffff;
+    --accent: #4f7cff;
+    --accent-dark: #3b63d6;
+    --text: #22262b;
+    --muted: #8a94a3;
+    --danger: #ff5c5c;
+    --done: #c8ccd2;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+  header {
+    background: var(--accent);
+    color: #fff;
+    padding: 20px 16px 16px;
+    text-align: center;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  header h1 {
+    margin: 0;
+    font-size: 1.3rem;
+  }
+  main {
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+  .input-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  #taskInput {
+    flex: 1;
+    padding: 14px;
+    font-size: 1rem;
+    border: 1px solid #dfe3e8;
+    border-radius: 10px;
+    background: var(--card);
+  }
+  #taskInput:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  #addBtn {
+    padding: 0 20px;
+    font-size: 1.5rem;
+    line-height: 1;
+    border: none;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  #addBtn:active {
+    background: var(--accent-dark);
+  }
+  #taskList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .task-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--card);
+    padding: 14px;
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .task-checkbox {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    accent-color: var(--accent);
+  }
+  .task-text {
+    flex: 1;
+    word-break: break-word;
+    font-size: 1rem;
+  }
+  .task-item.done .task-text {
+    text-decoration: line-through;
+    color: var(--done);
+  }
+  .delete-btn {
+    border: none;
+    background: transparent;
+    color: var(--danger);
+    font-size: 1.3rem;
+    line-height: 1;
+    padding: 4px 8px;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .empty-msg {
+    text-align: center;
+    color: var(--muted);
+    margin-top: 40px;
+    font-size: 0.95rem;
+  }
+  .counter {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📝 ToDoリスト</h1>
+</header>
+
+<main>
+  <div class="input-row">
+    <input type="text" id="taskInput" placeholder="やることを入力..." maxlength="200">
+    <button id="addBtn" aria-label="追加">＋</button>
+  </div>
+
+  <ul id="taskList"></ul>
+  <p class="empty-msg" id="emptyMsg">タスクはまだないよ。上の欄から追加してね！</p>
+  <p class="counter" id="counter"></p>
+</main>
+
+<script>
+  const STORAGE_KEY = 'todo-tasks-v1';
+
+  const taskInput = document.getElementById('taskInput');
+  const addBtn = document.getElementById('addBtn');
+  const taskList = document.getElementById('taskList');
+  const emptyMsg = document.getElementById('emptyMsg');
+  const counter = document.getElementById('counter');
+
+  function loadTasks() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveTasks(tasks) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+  }
+
+  let tasks = loadTasks();
+
+  function render() {
+    taskList.innerHTML = '';
+
+    tasks.forEach(task => {
+      const li = document.createElement('li');
+      li.className = 'task-item' + (task.done ? ' done' : '');
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'task-checkbox';
+      checkbox.checked = task.done;
+      checkbox.addEventListener('change', () => toggleDone(task.id));
+
+      const span = document.createElement('span');
+      span.className = 'task-text';
+      span.textContent = task.text;
+
+      const delBtn = document.createElement('button');
+      delBtn.className = 'delete-btn';
+      delBtn.textContent = '✕';
+      delBtn.setAttribute('aria-label', '削除');
+      delBtn.addEventListener('click', () => deleteTask(task.id));
+
+      li.appendChild(checkbox);
+      li.appendChild(span);
+      li.appendChild(delBtn);
+      taskList.appendChild(li);
+    });
+
+    emptyMsg.style.display = tasks.length === 0 ? 'block' : 'none';
+
+    const doneCount = tasks.filter(t => t.done).length;
+    counter.textContent = tasks.length > 0
+      ? `完了 ${doneCount} / 全 ${tasks.length}`
+      : '';
+  }
+
+  function addTask() {
+    const text = taskInput.value.trim();
+    if (!text) return;
+
+    tasks.push({
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+      text: text,
+      done: false
+    });
+
+    saveTasks(tasks);
+    taskInput.value = '';
+    taskInput.focus();
+    render();
+  }
+
+  function toggleDone(id) {
+    tasks = tasks.map(t => t.id === id ? { ...t, done: !t.done } : t);
+    saveTasks(tasks);
+    render();
+  }
+
+  function deleteTask(id) {
+    tasks = tasks.filter(t => t.id !== id);
+    saveTasks(tasks);
+    render();
+  }
+
+  addBtn.addEventListener('click', addTask);
+  taskInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') addTask();
+  });
+
+  render();
+</script>
+
+</body>
+</html>
